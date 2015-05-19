@@ -45,20 +45,21 @@ SELECT * FROM error_table ORDER BY error_timestamp DESC;
 
 CREATE TABlE fss_daily_settlement
 (
-  record VARCHAR2(1) DEFAULT 1
-  , merchantId NUMBER
+  --record VARCHAR2(1) DEFAULT 1
+  merchantId NUMBER
   , merchantBsb VARCHAR2(8)
   , merchantAccNum VARCHAR2(9)
   --, blank1 VARCHAR2(1) DEFAULT LPAD(' ',1,' ')
   , tranCode VARCHAR2(2)
-  , transaction NUMBER
+  , debit NUMBER
+  , credit NUMBER
   , merchantTitle VARCHAR2(32)
   , bankingFlag VARCHAR2(1)
   --, blank3 VARCHAR2(1) DEFAULT LPAD(' ',1,' ')
   , lodgementRef VARCHAR2(15) PRIMARY KEY
-  , trace VARCHAR2(20) DEFAULT '032-797 001006'
-  , remitter VARCHAR(16) DEFAULT 'SMARTCARD TRANS'
-  , gstTax VARCHAR2(8) DEFAULT '00000000'
+  --, trace VARCHAR2(20) DEFAULT '032-797 001006'
+  --, remitter VARCHAR(16) DEFAULT 'SMARTCARD TRANS'
+  --, gstTax VARCHAR2(8) DEFAULT '00000000'
   --, deskBankStatus VARCHAR2(1) DEFAULT NULL
 );
 

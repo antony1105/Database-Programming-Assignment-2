@@ -6,7 +6,7 @@ select * from fss_terminal_type;
 select * from fss_daily_transactions
 --where settlementStatus = 'Null'
 --where terminalId = 0051001500;
-order by transactionNr desc;
+order by transactionNr;
 select * from fss_reference;
 select * from fss_transactions
 order by transactionNr;
