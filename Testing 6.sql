@@ -18,7 +18,18 @@ begin
   execute immediate('truncate table fss_daily_transactions');
   execute immediate('truncate table fss_daily_settlement');
   COMMIT;
+  DELETE FROM fss_run_table
+  WHERE trunc(runStart, 'DDD') = trunc(SYSDATE, 'DDD');
+  DBMS_JOB.RUN(1385);
 end;
+/
+
+DELETE FROM fss_run_table
+WHERE trunc(runStart, 'DDD') = trunc(SYSDATE, 'DDD');
+
+BEGIN
+  dbms_output.put_line(TO_CHAR(LAST_DAY(null), 'dd/mm/yyyy'));
+END;
 /
 
 CREATE OR REPLACE DIRECTORY WT_11993577 AS '/exports/orcloz';
