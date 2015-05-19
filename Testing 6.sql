@@ -6,7 +6,7 @@ select * from fss_terminal_type;
 select * from fss_daily_transactions
 --where settlementStatus = 'Null'
 --where terminalId = 0051001500;
-order by transactionNr;
+order by transactionNr desc;
 select * from fss_reference;
 select * from fss_transactions
 order by transactionNr;
@@ -24,8 +24,23 @@ begin
 end;
 /
 
+select max(lodgementRef), min(lodgementRef)
+from fss_daily_settlement
+where substr(lodgementRef, 1, 8) = to_char(trunc(SYSDATE, 'DDD'), 'yyyymmdd');
+
+select substr('201505060000000012', 1, 8) from dual;
+
 DELETE FROM fss_run_table
 WHERE trunc(runStart, 'DDD') = trunc(SYSDATE, 'DDD');
+
+update fss_daily_transactions
+set settlementStatus = 'Null';
+
+select te.merchantId, sum(dt.transactionAmount)
+from fss_daily_transactions dt
+INNER JOIN fss_terminal te
+ON dt.terminalId = te.terminalId
+group by te.merchantId;
 
 BEGIN
   dbms_output.put_line(TO_CHAR(LAST_DAY(null), 'dd/mm/yyyy'));
@@ -141,3 +156,17 @@ WHERE ;
 
 select max(lodgementRef)
 from fss_daily_settlement;
+
+DECLARE
+  l_pixel_number NUMBER := 50;
+  l_word VARCHAR2(50) := 'First Settlement Report';
+  l_length NUMBER := length(l_word);
+  l_side_pixel NUMBER := floor((l_pixel_number - l_length) / 2);
+  l_indicator VARCHAR2(1) := ' ';
+  l_rpad VARCHAR2(100) := rpad(l_word, l_length + l_side_pixel, l_indicator);
+  l_lpad VARCHAR2(100) := lpad(l_rpad, length(l_rpad) + l_side_pixel, l_indicator);
+BEGIN
+  dbms_output.put_line(lpad(rpad('wira', length('wira') + 10, '*'), length(rpad('wira', length('wira') + 10, '*')) + 10, '*'));
+  dbms_output.put_line(l_lpad);
+END;
+/

@@ -64,7 +64,8 @@ INSERT INTO fss_daily_transactions
   FROM fss_transactions t
   INNER JOIN fss_terminal te
   ON t.terminalId = te.terminalId
-  WHERE transactionNr < 90000;
+  --WHERE transactionNr < 90000;
+  WHERE downloadDate < to_date('30/04/2015', 'dd/mm/yyyy');
 
 CREATE OR REPLACE PROCEDURE upd_daily_transaction_settled(p_change_value VARCHAR2)
 IS
@@ -128,3 +129,8 @@ CREATE OR REPLACE FUNCTION get_last_lodgement_ref
       common.upd_error_table(SQLERRM, 'get_last_lodgement_ref');
   END;
   /
+  
+SELECT max(runEnd)
+    --INTO l_last_run_date
+    FROM fss_run_table
+    WHERE runOutcome = 'Success';
