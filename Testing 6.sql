@@ -20,7 +20,7 @@ begin
   COMMIT;
   DELETE FROM fss_run_table
   WHERE trunc(runStart, 'DDD') = trunc(SYSDATE, 'DDD');
-  DBMS_JOB.RUN(1445);
+  DBMS_JOB.RUN(1505);
 end;
 /
 
@@ -224,3 +224,19 @@ SELECT m.merchantId AS merchantId
 
 select debit
 from fss_daily_settlement;
+
+--FUNCTION get_centered_text(p_word VARCHAR2, p_length NUMBER, p_indicator VARCHAR2)
+  --RETURN VARCHAR2
+  --IS
+DECLARE
+    l_length NUMBER := length('Wira');
+    l_side_pixel NUMBER := floor(('Wira' - l_length) / 2);
+    l_rpad VARCHAR2(1000) := rpad('Wira', l_length + l_side_pixel, ' ');
+    l_lpad VARCHAR2(1000) := lpad(l_rpad, length(l_rpad) + l_side_pixel, ' ');
+  BEGIN
+    dbms_output.put_line(l_lpad);
+  END;
+/
+  
+SELECT REGEXP_COUNT ('sdge\nhewshhshweh\neehsthsrh\nerterysef', '\n')
+FROM dual;
