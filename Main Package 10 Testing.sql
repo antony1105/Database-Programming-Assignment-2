@@ -389,12 +389,30 @@ AS
       common.upd_error_table(SQLERRM, 'get_deskbank_footer'); 
   END get_deskbank_footer;
   
+  FUNCTION get_number_or_empty_space(p_number NUMBER)
+  RETURN VARCHAR2
+  IS
+  BEGIN
+    IF p_number IS NULL
+    THEN
+      RETURN ' ';
+    ELSE
+      RETURN p_number;
+    END IF;
+  EXCEPTION
+    WHEN OTHERS 
+    THEN
+      common.upd_error_table(SQLERRM, 'get_number_or_empty_space');
+  END get_number_or_empty_space;
+  
   FUNCTION get_settlement_report_body(p_settlement_date DATE)
   RETURN VARCHAR2 
   IS
     l_lower_lodgement_ref NUMBER;
     l_higher_lodgement_ref NUMBER;
     l_text VARCHAR2(3000);
+    l_merchant_id VARCHAR2(20);
+    l_debit VARCHAR2(20);
   BEGIN
     SELECT min(lodgementRef), max(lodgementRef)
     INTO l_lower_lodgement_ref, l_higher_lodgement_ref
@@ -403,8 +421,10 @@ AS
     
     FOR rec_settlements IN g_c_settlements(l_lower_lodgement_ref, l_higher_lodgement_ref)
     LOOP
-      l_text := l_text || rpad(rec_settlements.merchantId, 12) || rpad(rec_settlements.merchantTitle, 32) || get_bsb_format(rec_settlements.merchantBsb)
-        || rpad(rec_settlements.merchantAccNum, 12) ||rec_settlements.lodgementRef || '\n';
+      l_merchant_id := get_number_or_empty_space(rec_settlements.merchantId);
+      l_debit := to_char(get_number_or_empty_space(rec_settlements.debit), 'FM99999999.90');
+      l_text := l_text || rpad(l_merchant_id, 12) || rpad(rec_settlements.merchantTitle, 32) || get_bsb_format(rec_settlements.merchantBsb)
+        || rpad(rec_settlements.merchantAccNum, 11) || rpad(l_debit, 12) ||rec_settlements.lodgementRef || '\n';
     END LOOP;
     RETURN l_text;
   EXCEPTION

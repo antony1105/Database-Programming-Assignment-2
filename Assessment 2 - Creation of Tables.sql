@@ -46,7 +46,7 @@ SELECT * FROM error_table ORDER BY error_timestamp DESC;
 CREATE TABlE fss_daily_settlement
 (
   --record VARCHAR2(1) DEFAULT 1
-  merchantId VARCHAR2(10) DEFAULT ' '
+  merchantId NUMBER
   , merchantBsb VARCHAR2(8)
   , merchantAccNum VARCHAR2(9)
   --, blank1 VARCHAR2(1) DEFAULT LPAD(' ',1,' ')
