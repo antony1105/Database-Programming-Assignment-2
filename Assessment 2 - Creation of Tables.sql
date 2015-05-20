@@ -46,7 +46,7 @@ SELECT * FROM error_table ORDER BY error_timestamp DESC;
 CREATE TABlE fss_daily_settlement
 (
   --record VARCHAR2(1) DEFAULT 1
-  merchantId NUMBER
+  merchantId VARCHAR2(10) DEFAULT ' '
   , merchantBsb VARCHAR2(8)
   , merchantAccNum VARCHAR2(9)
   --, blank1 VARCHAR2(1) DEFAULT LPAD(' ',1,' ')
@@ -56,7 +56,7 @@ CREATE TABlE fss_daily_settlement
   , merchantTitle VARCHAR2(32)
   , bankingFlag VARCHAR2(1)
   --, blank3 VARCHAR2(1) DEFAULT LPAD(' ',1,' ')
-  , lodgementRef VARCHAR2(15) PRIMARY KEY
+  , lodgementRef VARCHAR2(20)
   --, trace VARCHAR2(20) DEFAULT '032-797 001006'
   --, remitter VARCHAR(16) DEFAULT 'SMARTCARD TRANS'
   --, gstTax VARCHAR2(8) DEFAULT '00000000'
@@ -118,3 +118,6 @@ BEGIN
   :new.runId := seq_run_id.nextval;
 END;
 /
+
+DROP TRIGGER trig_create_lodgement_ref;
+DROP TRIGGER trig_create_run_id;

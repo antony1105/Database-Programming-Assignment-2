@@ -7,7 +7,8 @@ BEGIN
     (
       JobNo
     , q'[BEGIN
-        pkg_fss_settlement.DailySettlement;     
+        pkg_fss_settlement.DailySettlement;
+        pkg_fss_settlement.DailyBankingSummary(trunc(sysdate, 'DDD'));     
       EXCEPTION
         WHEN OTHERS
         THEN 
@@ -19,9 +20,15 @@ BEGIN
 END;
 /
 
-EXECUTE DBMS_JOB.RUN(1385);
+EXECUTE DBMS_JOB.RUN(1445);
 
-exec dbms_job.remove(1366);
+exec dbms_job.remove(1385);
+
+BEGIN
+        pkg_fss_settlement.DailySettlement;
+        --pkg_fss_settlement.DailyBankingSummary(to_date(1/2/2025, 'dd/mm/yyyy'));  
+END;
+/
 
 DECLARE
         run_start TIMESTAMP;

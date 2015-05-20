@@ -25,14 +25,16 @@ AS
   BEGIN
     INSERT INTO fss_run_table
       (
-        runStart
+        runId
+        , runStart
         , runEnd
         , runOutcome
         , remarks
       )
     VALUES
       (
-        p_run_start
+        seq_run_id.nextval
+        , p_run_start
         , SYSTIMESTAMP
         , p_outcome
         , p_err_message

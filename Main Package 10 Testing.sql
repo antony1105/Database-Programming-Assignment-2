@@ -23,7 +23,7 @@ AS
   PROCEDURE upd_fss_daily_transaction;
   PROCEDURE ins_daily_settlement;
   PROCEDURE DailySettlement;
-  PROCEDURE upd_daily_transaction_settled(p_change_value VARCHAR2, p_settlement_status VARCHAR2 := 'Null');
+  PROCEDURE DailyBankingSummary(p_date DATE);
 END pkg_fss_settlement;
 /
 
@@ -38,6 +38,7 @@ AS
   gc_debit_tran_code CONSTANT NUMBER := 13;
   g_directory_name VARCHAR2(50) := 'WT_11993577';
   g_deskbank_file_name VARCHAR2(50) := 'DS_' || to_char(SYSDATE, 'ddmmyyyy') || 'WT';
+  g_seq_lodgement_ref NUMBER := seq_lodgement_reference.nextval;
   
   CURSOR g_c_settlements(p_last_settlement NUMBER, p_last_lodgement_ref NUMBER)
   IS
@@ -216,10 +217,12 @@ AS
   
   PROCEDURE ins_daily_settlement
   IS 
+    --l_lodgement_ref NUMBER := to_char(sysdate, 'YYYYMMDD') || to_char(g_seq_lodgement_ref, 'FM0000000');
   BEGIN
     INSERT INTO fss_daily_settlement
       (
-        merchantId
+        lodgementRef
+        , merchantId
         , merchantBsb
         , merchantAccNum
         , tranCode
@@ -227,27 +230,36 @@ AS
         , merchantTitle
         , bankingFlag
       )
-      SELECT m.merchantId
-        , m.merchantBankBsb
-        , m.merchantBankAccNr
+      SELECT to_char(sysdate, 'YYYYMMDD') || to_char(seq_lodgement_reference.nextval, 'FM0000000')
+        , merchantId
+        , merchantBsb
+        , merchantAccNr
         , gc_credit_tran_code
-        , sum(dt.transactionAmount)
-        , UPPER(m.merchantAccountTitle)
+        , transactionAmount
+        , merchantTitle
         , gc_credit_banking_flag
-      FROM fss_daily_transactions dt
-      INNER JOIN fss_smartcard s
-      ON dt.cardId = s.cardId
-      INNER JOIN fss_terminal te
-      ON dt.terminalId = te.terminalId
-      INNER JOIN fss_terminal_type tet
-      ON te.terminalType = tet.typeName
-      INNER JOIN fss_merchant m
-      ON te.merchantId = m.merchantId
-      WHERE dt.settlementStatus = 'Checked'
-      GROUP BY m.merchantId
-        , m.merchantBankBsb
-        , m.merchantBankAccNr
-        , m.merchantAccountTitle;
+      FROM
+        (
+          SELECT m.merchantId AS merchantId
+          , m.merchantBankBsb AS merchantBsb
+          , m.merchantBankAccNr AS merchantAccNr
+          , sum(dt.transactionAmount) AS transactionAmount
+          , upper(m.merchantAccountTitle) AS merchantTitle
+        FROM fss_daily_transactions dt
+        INNER JOIN fss_smartcard s
+        ON dt.cardId = s.cardId
+        INNER JOIN fss_terminal te
+        ON dt.terminalId = te.terminalId
+        INNER JOIN fss_terminal_type tet
+        ON te.terminalType = tet.typeName
+        INNER JOIN fss_merchant m
+        ON te.merchantId = m.merchantId
+        WHERE dt.settlementStatus = 'Checked'
+        GROUP BY m.merchantId
+          , m.merchantBankBsb
+          , m.merchantBankAccNr
+          , m.merchantAccountTitle
+        );
     COMMIT;
   EXCEPTION
     WHEN OTHERS 
@@ -257,19 +269,22 @@ AS
   
   PROCEDURE ins_debit_settlement
   IS
+    --l_lodgement_ref NUMBER := to_char(sysdate, 'YYYYMMDD') || to_char(g_seq_lodgement_ref, 'FM0000000');
   BEGIN
     IF g_credit_sum IS NOT NULL
     THEN 
       INSERT INTO fss_daily_settlement
         (
-          merchantBsb
+          lodgementRef
+          , merchantBsb
           , merchantAccNum
           , tranCode
           , debit
           , merchantTitle
           , bankingFlag
         )
-      SELECT orgBsBNr
+      SELECT to_char(sysdate, 'YYYYMMDD') || to_char(seq_lodgement_reference.nextval, 'FM0000000')
+          , orgBsBNr
           , orgBankAccount
           , gc_debit_tran_code
           , g_credit_sum
@@ -284,7 +299,16 @@ AS
       common.upd_error_table(SQLERRM, 'ins_debit_settlement');
   END ins_debit_settlement;
   
-  --FUNCTION get_centered_text(p_
+  FUNCTION get_centered_text(p_word VARCHAR2, p_length NUMBER, p_indicator VARCHAR2)
+  RETURN VARCHAR2
+  IS
+    l_length NUMBER := length(p_word);
+    l_side_pixel NUMBER := floor((p_word - l_length) / 2);
+    l_rpad VARCHAR2(1000) := rpad(p_word, l_length + l_side_pixel, p_indicator);
+    l_lpad VARCHAR2(1000) := lpad(l_rpad, length(l_rpad) + l_side_pixel, p_indicator);
+  BEGIN
+    RETURN l_lpad;
+  END get_centered_text;
   
   FUNCTION get_deskbank_header
   RETURN VARCHAR2
@@ -321,6 +345,7 @@ AS
         || rec_settlements.tranCode || to_char(rec_settlements.debit, l_number_format) || to_char(rec_settlements.credit, l_number_format) 
         || rpad(rec_settlements.merchantTitle, 33) || rpad(rec_settlements.bankingFlag, 2) || rec_settlements.lodgementRef || l_trace || l_remitter 
         || l_gst_tax || '\n';
+      --dbms_output.put_line(rec_settlements.lodgementRef);
     END LOOP;
     RETURN l_text;
   EXCEPTION
@@ -378,9 +403,10 @@ AS
     
     FOR rec_settlements IN g_c_settlements(l_lower_lodgement_ref, l_higher_lodgement_ref)
     LOOP
-      l_text := l_text || rec_settlements.lodgementRef || '\n';
+      l_text := l_text || rpad(rec_settlements.merchantId, 12) || rpad(rec_settlements.merchantTitle, 32) || get_bsb_format(rec_settlements.merchantBsb)
+        || rpad(rec_settlements.merchantAccNum, 12) ||rec_settlements.lodgementRef || '\n';
     END LOOP;
-    RETURN '0';
+    RETURN l_text;
   EXCEPTION
     WHEN OTHERS 
     THEN
@@ -400,7 +426,7 @@ AS
   EXCEPTION
     WHEN OTHERS 
     THEN
-      common.upd_error_table(SQLERRM, 'ins_deskbank_file');
+      common.upd_error_table(SQLERRM, 'ins_file');
       utl_file.fclose(l_file);
   END ins_file;
   
@@ -424,7 +450,7 @@ AS
       g_credit_sum := get_credit_sum;
       ins_debit_settlement;
       ins_file('DS_' || l_date || '_WT.dat', get_deskbank_header, get_deskbank_body, get_deskbank_footer) ;
-      --dbms_output.put_line(g_last_transaction_nr);
+      --dbms_output.put_line('Check' || g_last_transaction_nr);
       upd_daily_transaction_settled(SYSTIMESTAMP, 'Checked');
       common.ins_run_table(l_run_start, 'Success');
     END IF;
@@ -436,4 +462,17 @@ AS
       common.ins_run_table(l_run_start, 'Failed', SQLERRM);  
       ROLLBACK;
   END DailySettlement;
+  
+  PROCEDURE DailyBankingSummary(p_date DATE)
+  IS
+    l_file_name VARCHAR2(50) := '11993577_DBS_' || to_char(p_date, 'ddmmyyyy') || '_WT';
+  BEGIN
+    ins_file(l_file_name, 'get_settlement_report_header\n', get_settlement_report_body(p_date), 'get_settlement_footer');
+  COMMIT;
+  EXCEPTION
+    WHEN OTHERS 
+    THEN
+      common.upd_error_table(SQLERRM, 'DailySettlement');
+  END DailyBankingSummary;
+  
 END pkg_fss_settlement;

@@ -20,7 +20,7 @@ begin
   COMMIT;
   DELETE FROM fss_run_table
   WHERE trunc(runStart, 'DDD') = trunc(SYSDATE, 'DDD');
-  DBMS_JOB.RUN(1385);
+  DBMS_JOB.RUN(1445);
 end;
 /
 
@@ -166,7 +166,61 @@ DECLARE
   l_rpad VARCHAR2(100) := rpad(l_word, l_length + l_side_pixel, l_indicator);
   l_lpad VARCHAR2(100) := lpad(l_rpad, length(l_rpad) + l_side_pixel, l_indicator);
 BEGIN
-  dbms_output.put_line(lpad(rpad('wira', length('wira') + 10, '*'), length(rpad('wira', length('wira') + 10, '*')) + 10, '*'));
   dbms_output.put_line(l_lpad);
 END;
 /
+
+select merchantId
+from (
+  select * from fss_merchant);
+
+SELECT to_char(sysdate, 'YYYYMMDD') || to_char(seq_lodgement_reference.nextval, 'FM0000000')
+        , merchantId
+        , merchantBsb
+        , merchantAccNr
+        , transactionAmount
+        , merchantTitle
+      FROM 
+        (
+          SELECT m.merchantId AS merchantId
+            , m.merchantBankBsb AS merchantBsb
+            , m.merchantBankAccNr AS merchantAccNr
+            , sum(dt.transactionAmount) AS transactionAmount
+            , UPPER(m.merchantAccountTitle) AS merchantTitle
+          FROM fss_daily_transactions dt
+          INNER JOIN fss_smartcard s
+          ON dt.cardId = s.cardId
+          INNER JOIN fss_terminal te
+          ON dt.terminalId = te.terminalId
+          INNER JOIN fss_terminal_type tet
+          ON te.terminalType = tet.typeName
+          INNER JOIN fss_merchant m
+          ON te.merchantId = m.merchantId
+          WHERE dt.settlementStatus = 'Checked'
+          GROUP BY m.merchantId
+            , m.merchantBankBsb
+            , m.merchantBankAccNr
+            , m.merchantAccountTitle
+        );
+SELECT m.merchantId AS merchantId
+            , m.merchantBankBsb AS merchantBsb
+            , m.merchantBankAccNr AS merchantAccNr
+            , sum(dt.transactionAmount) AS transactionAmount
+            , UPPER(m.merchantAccountTitle) AS merchantTitle
+          FROM fss_daily_transactions dt
+          INNER JOIN fss_smartcard s
+          ON dt.cardId = s.cardId
+          INNER JOIN fss_terminal te
+          ON dt.terminalId = te.terminalId
+          INNER JOIN fss_terminal_type tet
+          ON te.terminalType = tet.typeName
+          INNER JOIN fss_merchant m
+          ON te.merchantId = m.merchantId
+          WHERE dt.settlementStatus = 'Checked'
+          GROUP BY m.merchantId
+            , m.merchantBankBsb
+            , m.merchantBankAccNr
+            , m.merchantAccountTitle;
+
+select debit
+from fss_daily_settlement;
