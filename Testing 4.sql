@@ -4,8 +4,8 @@ order by merchantId, terminalType;
 select * from fss_terminal_type;
 select * from fss_daily_transactions
 --where settlementStatus = 'Null'
---where terminalId = 0051001500;
-order by transactionNr desc;
+--where merchantId = 700001300
+order by settlementStatus desc, transactionNr;
 select * from fss_reference;
 select * from fss_transactions
 order by transactionNr;
@@ -65,7 +65,7 @@ INSERT INTO fss_daily_transactions
   INNER JOIN fss_terminal te
   ON t.terminalId = te.terminalId
   --WHERE transactionNr < 90000;
-  WHERE downloadDate < to_date('30/04/2015', 'dd/mm/yyyy');
+  WHERE downloadDate < to_date('20/05/2015', 'dd/mm/yyyy');
 
 CREATE OR REPLACE PROCEDURE upd_daily_transaction_settled(p_change_value VARCHAR2)
 IS

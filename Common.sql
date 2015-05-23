@@ -10,7 +10,7 @@ AS
   PROCEDURE upd_error_table(p_err_msg VARCHAR2, p_location VARCHAR2) 
   IS
   BEGIN
-    INSERT INTO error_table
+    INSERT INTO fss_error_table
     VALUES
       (
         p_err_msg

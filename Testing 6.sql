@@ -5,7 +5,7 @@ order by merchantId, terminalType;
 select * from fss_terminal_type;
 select * from fss_daily_transactions
 --where settlementStatus = 'Null'
---where terminalId = 0051001500;
+where merchantId = 700001300
 order by transactionNr desc;
 select * from fss_reference;
 select * from fss_transactions
@@ -36,11 +36,14 @@ WHERE trunc(runStart, 'DDD') = trunc(SYSDATE, 'DDD');
 update fss_daily_transactions
 set settlementStatus = 'Null';
 
-select te.merchantId, sum(dt.transactionAmount)
+select te.merchantId, m.merchantAccountTitle, sum(dt.transactionAmount)
 from fss_daily_transactions dt
 INNER JOIN fss_terminal te
 ON dt.terminalId = te.terminalId
-group by te.merchantId;
+INNER JOIN fss_merchant m
+ON dt.merchantId = m.merchantId
+WHERE dt.settlementStatus = '22/MAY/15 01:58:29.882264000 PM +10:00'
+group by te.merchantId, m.merchantAccountTitle;
 
 BEGIN
   dbms_output.put_line(TO_CHAR(LAST_DAY(null), 'dd/mm/yyyy'));

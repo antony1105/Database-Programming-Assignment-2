@@ -32,16 +32,17 @@ SELECT * FROM fss_daily_transactions;
 
 TRUNCATE TABLE fss_daily_transactions;
 
-CREATE TABLE error_table
+CREATE TABLE fss_error_table
 (
-  error_message VARCHAR(500)
-  , error_timestamp TIMESTAMP
+  errorMessage VARCHAR(500)
+  , errorTimestamp TIMESTAMP
   , location VARCHAR(50)
 );
 
-DROP TABLE error_table;
+DROP TABLE fss_error_table;
 
-SELECT * FROM error_table ORDER BY error_timestamp DESC;
+SELECT * FROM fss_error_table ORDER BY errorTimestamp DESC;
+
 
 CREATE TABlE fss_daily_settlement
 (
