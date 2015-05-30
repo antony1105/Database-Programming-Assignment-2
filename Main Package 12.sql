@@ -34,7 +34,7 @@ CREATE OR REPLACE PACKAGE pkg_fss_settlement
 AS
   --PROCEDURE upd_fss_daily_transaction;
   --PROCEDURE ins_daily_settlement;
-  PROCEDURE send_email(p_subject VARCHAR2, p_message VARCHAR2, p_recipient VARCHAR2, p_sender VARCHAR2);
+  PROCEDURE send_email(p_date DATE, p_subject VARCHAR2, p_message VARCHAR2);
   PROCEDURE DailySettlement;
   PROCEDURE DailyBankingSummary(p_date DATE);
 END pkg_fss_settlement;
@@ -65,6 +65,31 @@ AS
     FROM fss_daily_settlement
     WHERE lodgementRef BETWEEN
       p_last_settlement AND p_last_lodgement_ref;
+  
+  PROCEDURE ins_run_table(p_run_start TIMESTAMP, p_outcome VARCHAR2, p_err_message VARCHAR2 := NULL)
+  IS
+  BEGIN
+    INSERT INTO fss_run_table
+      (
+        runId
+        , runStart
+        , runEnd
+        , runOutcome
+        , remarks
+      )
+    VALUES
+      (
+        seq_run_id.nextval
+        , p_run_start
+        , SYSTIMESTAMP
+        , p_outcome
+        , p_err_message
+      );
+  EXCEPTION
+    WHEN OTHERS 
+    THEN
+      common.upd_error_table(SQLERRM, 'ins_run_table');
+  END ins_run_table;
 
   FUNCTION get_last_lodgement_ref
   RETURN NUMBER
@@ -363,6 +388,7 @@ AS
         || rec_settlements.tranCode || to_char(rec_settlements.debit, l_number_format) || to_char(rec_settlements.credit, l_number_format)
         || rpad(rec_settlements.merchantTitle, 33) || rpad(rec_settlements.bankingFlag, 2) || rec_settlements.lodgementRef || l_trace || l_remitter
         || l_gst_tax || '\n';
+      --dbms_output.put_line(rec_settlements.lodgementRef);
     END LOOP;
     RETURN l_text;
   EXCEPTION
@@ -450,7 +476,7 @@ AS
   IS
     l_lower_lodgement_ref NUMBER;
     l_higher_lodgement_ref NUMBER;
-    l_text VARCHAR2(1000);
+    l_text VARCHAR2(5000);
     l_merchant_id VARCHAR2(20);
     l_debit VARCHAR2(20);
     l_credit VARCHAR2(20);
@@ -496,15 +522,13 @@ AS
       common.upd_error_table(SQLERRM, 'get_settlement_report_footer');
   END get_settlement_report_footer;
 
-  PROCEDURE ins_file(p_file_name VARCHAR2, p_header VARCHAR2, p_body VARCHAR2, p_footer VARCHAR2)
+  PROCEDURE ins_file(p_file_name VARCHAR2, p_content VARCHAR2)
   IS
     l_file  utl_file.file_type;
     l_directory VARCHAR2(20) := 'WT_11993577';
   BEGIN
-    l_file := utl_file.fopen (l_directory, p_file_name, 'W');
-    utl_file.putf(l_file, p_header);
-    utl_file.putf(l_file, p_body);
-    utl_file.putf(l_file, p_footer);
+    l_file := utl_file.fopen (l_directory,p_file_name, 'W');
+    utl_file.putf(l_file, p_content);
     utl_file.fclose(l_file);
   EXCEPTION
     WHEN OTHERS
@@ -526,14 +550,14 @@ AS
       settle_new_transactions;
       create_deskbank_file;
       DailyBankingSummary(trunc(SYSDATE, 'DDD'));
-      common.ins_run_table(l_run_start, 'Success');
+      ins_run_table(l_run_start, 'Success');
     END IF;
   COMMIT;
   EXCEPTION
     WHEN OTHERS
     THEN
       common.upd_error_table(SQLERRM, 'DailySettlement');
-      common.ins_run_table(l_run_start, 'Failed', SQLERRM);
+      ins_run_table(l_run_start, 'Failed', SQLERRM);
       ROLLBACK;
   END DailySettlement;
 
@@ -563,98 +587,91 @@ AS
   IS
     l_date VARCHAR2(10) := to_char(SYSDATE, 'ddmmyyyy');
   BEGIN
-    ins_file('DS_' || l_date || '_WT.dat', get_deskbank_header, get_deskbank_body, get_deskbank_footer);
+    ins_file('DS_' || l_date || '_WT.dat', get_deskbank_header || get_deskbank_body || get_deskbank_footer);
   EXCEPTION
     WHEN OTHERS
     THEN
       common.upd_error_table(SQLERRM, 'create_deskbank_file');
   END create_deskbank_file;
-
-  PROCEDURE DailyBankingSummary(p_date DATE)
+  
+  FUNCTION get_summary_report(p_date DATE)
+  RETURN VARCHAR2
   IS
-    l_file_name VARCHAR2(50) := '11993577_DBS_' || to_char(p_date, 'ddmmyyyy') || '_WT';
     l_body VARCHAR2(3000) := get_settlement_report_body(p_date);
     l_count NUMBER := regexp_count(l_body, '\n');
     l_length NUMBER := (length(l_body) - l_count * 2) / l_count;
   BEGIN
-    ins_file(l_file_name, get_settlement_report_header(p_date, l_length), get_settlement_report_body(p_date), get_settlement_report_footer(p_date, l_length));
+    RETURN get_settlement_report_header(p_date, l_length) || get_settlement_report_body(p_date) || get_settlement_report_footer(p_date, l_length);
+  END get_summary_report;
+
+  PROCEDURE DailyBankingSummary(p_date DATE)
+  IS
+    l_file_name VARCHAR2(100) := '11993577_DBS_' || to_char(p_date, 'ddmmyyyy') || '_WT';
+    l_subject VARCHAR2(100) := 'Daily Backing Summary Report ' || to_char(p_date, 'dd/mm/yyyy');
+    l_message VARCHAR2(500) := 'Sent From the OMS Database by the PL/SQL application\n'
+      || 'The Daily Banking Summary Report ' || to_char(p_date, 'dd/mm/yyyy') || ' is in the attached file\n\n'
+      || 'Regards\n'
+      || 'The OMS Database\n\n'
+      || 'This is an automatically generated email so please do not reply\n\n';
+  BEGIN
+    ins_file(l_file_name, get_summary_report(p_date));
+    send_email(p_date, l_subject , l_message);
   COMMIT;
   EXCEPTION
     WHEN OTHERS
     THEN
       common.upd_error_table(SQLERRM, 'DailyBankingSummary');
   END DailyBankingSummary;
-
-  FUNCTION get_smtp_stream(p_mail_conn UTL_SMTP.connection, p_file_name VARCHAR2, p_content VARCHAR2, p_message VARCHAR2)
-  RETURN VARCHAR2
-  IS
-    con_nl VARCHAR2(2) := CHR(13) || CHR(10);
-  BEGIN
-    RETURN 'Mime-Version: 1.0' || con_nl
-      || 'Content-Type: multipart/mixed; boundary="Lauries Boundary"' || con_nl || con_nl
-
-      || '--Lauries Boundary' || con_nl
-
-      || 'Content-type: text/plain; charset=us-ascii' || con_nl || con_nl
-
-      || p_message || con_nl || con_nl
-
-      || '--Lauries Boundary' || con_nl
-
-      || 'Content-Type: application/octet-stream; name="' || p_file_name || '"' || con_nl
-      || 'Content-Transfer-Encoding: 7bit' || con_nl || con_nl
-
-      || p_content || con_nl || con_nl
-
-      || '--Lauries Boundary--' || con_nl;
-  END get_smtp_stream;
-
-  PROCEDURE send_email(p_subject VARCHAR2, p_message VARCHAR2, p_recipient VARCHAR2, p_sender VARCHAR2)
+  
+  PROCEDURE send_email(p_date DATE, p_subject VARCHAR2, p_message VARCHAR2)
   IS
     --p_subject VARCHAR2(50) := 'This is the subject';
     --p_message VARCHAR2(50) := 'Please give me money\n Wira is cool';
-    --p_recipient VARCHAR2(50) := common.get_string_parameter('EMAIL_RECIPIENT', 'ASS2_RECIPIENT');
-    --p_sender VARCHAR2(50) := 'procedure@uts.edu.au';
+    l_recipient VARCHAR2(50) := common.get_string_parameter('EMAIL_RECIPIENT', 'ASS2_RECIPIENT');
+    l_sender VARCHAR2(50) := common.get_string_parameter('EMAIL_SENDER', 'ASS2_SENDER');
+    con_nl VARCHAR2(2) := CHR(13) || CHR(10);
+    l_message VARCHAR2(1000) := regexp_replace(p_message, '\\n', con_nl);
+    l_content VARCHAR2(5000) := regexp_replace(get_summary_report(p_date), '\\n', con_nl);
     l_mailhost VARCHAR2(50) := 'postoffice.uts.edu.au';
     mail_conn UTL_SMTP.connection;
     l_proc_name VARCHAR2(50) := 'send_email';
     l_recipient_list VARCHAR2(2000);
-    l_recipient VARCHAR2(80);
+    --l_recipient VARCHAR2(80);
     l_counter NUMBER := 0;
-    con_nl VARCHAR2(2) := CHR(13) || CHR(10);
     con_email_footer VARCHAR2(250) := 'This is the email footer';
     --
     --
     --
   BEGIN
+    dbms_output.put_line(l_content);
     --     v_recipient_list := REPLACE(p_recipient, ' ');  --get rid of any spaces so that it's easier to split up
     mail_conn := UTL_SMTP.open_connection (l_mailhost, 25);
     UTL_SMTP.helo (mail_conn, l_mailhost);
-    UTL_SMTP.mail (mail_conn, p_sender);
-    --
-
-    UTL_SMTP.rcpt(mail_conn, p_recipient);
+    UTL_SMTP.mail (mail_conn, l_sender);
+    -- 
+    
+    UTL_SMTP.rcpt(mail_conn, l_recipient);
     UTL_SMTP.open_data(mail_conn);
-    UTL_SMTP.write_data(mail_conn,'From' || ':' || p_sender || con_nl);
-    UTL_SMTP.write_data(mail_conn,'To'|| ':'|| p_recipient || con_nl);
+    UTL_SMTP.write_data(mail_conn,'From' || ':' || l_sender || con_nl);
+    UTL_SMTP.write_data(mail_conn,'To'|| ':'|| l_recipient || con_nl);
     UTL_SMTP.write_data(mail_conn,'Subject'|| ':'|| p_subject || con_nl);
     --UTL_SMTP.write_data(mail_conn, con_nl || get_smtp_stream(mail_conn, 'Deskbank.txt', 'Test 1 2 3', p_message) || con_nl);
     utl_smtp.write_data(mail_conn, 'Mime-Version: 1.0' || con_nl);
-    utl_smtp.write_data(mail_conn, 'Content-Type: multipart/mixed; boundary="Lauries Boundary"' || con_nl || con_nl);
-
+    utl_smtp.write_data(mail_conn, 'Content-Type: multipart/mixed; boundary="Lauries Boundary"' || con_nl || con_nl); 
+    
     utl_smtp.write_data(mail_conn, '--Lauries Boundary' || con_nl);
-
+      
     utl_smtp.write_data(mail_conn, 'Content-type: text/plain; charset=us-ascii' || con_nl || con_nl);
-
-    utl_smtp.write_data(mail_conn, p_message || con_nl || con_nl);
-
-    utl_smtp.write_data(mail_conn, '--Lauries Boundary' || con_nl);
-
-    utl_smtp.write_data(mail_conn, 'Content-Type: application/octet-stream; name="' || 'Testing.txt' || '"' || con_nl);
+      
+    utl_smtp.write_data(mail_conn, l_message || con_nl || con_nl);
+       
+    utl_smtp.write_data(mail_conn, '--Lauries Boundary' || con_nl); 
+      
+    utl_smtp.write_data(mail_conn, 'Content-Type: application/octet-stream; name="' || 'Testing.txt' || '"' || con_nl); 
     utl_smtp.write_data(mail_conn, 'Content-Transfer-Encoding: 7bit' || con_nl || con_nl);
-
-    utl_smtp.write_data(mail_conn, 'Wira' || con_nl || con_nl);
-
+      
+    utl_smtp.write_data(mail_conn, l_content || con_nl || con_nl); 
+      
     utl_smtp.write_data(mail_conn, '--Lauries Boundary--' || con_nl);
     UTL_SMTP.write_data(mail_conn, con_nl || con_email_footer || con_nl);
     UTL_SMTP.close_data(mail_conn);

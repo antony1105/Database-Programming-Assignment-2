@@ -6,22 +6,16 @@ BEGIN
   dbms_job.submit
     (
       JobNo
-    , q'[BEGIN
-        pkg_fss_settlement.DailySettlement;   
-      EXCEPTION
-        WHEN OTHERS
-        THEN 
-          common.upd_error_table(SQLERRM, 'jobs');        
-      END;]'-- where the name of your program goes Note the closing semi-colon
+    , 'pkg_fss_settlement.DailySettlement;'  -- where the name of your program goes Note the closing semi-colon
     , SYSDATE   -- this means that the first run will be now
     , 'trunc(SYSDATE + 1) + 19/24'
     ); -- This tells it to run every day at 7PM
 END;
 /
 
-EXECUTE DBMS_JOB.RUN(1505);
+EXECUTE DBMS_JOB.RUN(1710);
 
-exec dbms_job.remove(1445);
+exec dbms_job.remove(1709);
 
 BEGIN
         pkg_fss_settlement.DailySettlement;
@@ -62,5 +56,8 @@ SELECT
        -- , 'N'
       )
     FROM fss_organisation;
-    
-select orgbankaccount
+    /
+
+SELECT min(lodgementRef), max(lodgementRef)
+    FROM fss_daily_settlement
+    WHERE substr(lodgementRef, 1, 8) = to_char(trunc(sysdate, 'DDD'), 'yyyymmdd');

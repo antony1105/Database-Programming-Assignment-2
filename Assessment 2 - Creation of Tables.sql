@@ -43,7 +43,6 @@ DROP TABLE fss_error_table;
 
 SELECT * FROM fss_error_table ORDER BY errorTimestamp DESC;
 
-
 CREATE TABlE fss_daily_settlement
 (
   --record VARCHAR2(1) DEFAULT 1
@@ -79,15 +78,6 @@ CACHE 20;
 
 DROP SEQUENCE seq_lodgement_reference;
 
-CREATE OR REPLACE TRIGGER trig_create_lodgement_ref
-BEFORE INSERT
-ON fss_daily_settlement
-FOR EACH ROW
-BEGIN
-  :new.lodgementRef := to_char(sysdate, 'YYYYMMDD')||to_char(seq_lodgement_reference.nextval, 'FM0000000');
-END;
-/
-
 CREATE SEQUENCE seq_run_id
 MINVALUE 1
 MAXVALUE 9999999999
@@ -111,14 +101,33 @@ DROP TABLE fss_run_table;
 SELECT * FROM fss_run_table
 ORDER BY runId desc;
 
-CREATE OR REPLACE TRIGGER trig_create_run_id
-BEFORE INSERT
-ON fss_run_table
-FOR EACH ROW
-BEGIN
-  :new.runId := seq_run_id.nextval;
-END;
-/
+CREATE TABLE parameter
+( 
+  kind VARCHAR2(25 BYTE)                         
+  , code VARCHAR2(25 BYTE)                        
+  , value VARCHAR2(255 BYTE)                        
+  , description VARCHAR2(255 BYTE)                        
+  , active VARCHAR2(1 BYTE)                         
+  , auditDate DATE DEFAULT SYSDATE
+);
 
-DROP TRIGGER trig_create_lodgement_ref;
-DROP TRIGGER trig_create_run_id;
+DROP table parameter;
+
+SELECT * from parameter;
+
+INSERT INTO parameter
+  (
+    kind
+    , code
+    , value
+    , description
+    , active
+  )
+VALUES
+  (
+    'EMAIL_SENDER'
+    , 'ASS2_SENDER'
+    , 'procedure@uts.edu.au'
+    , 'The sender for the email message for Assignment2'
+    , 'Y'
+  );

@@ -5,14 +5,15 @@ order by merchantId, terminalType;
 select * from fss_terminal_type;
 select * from fss_daily_transactions
 --where settlementStatus = 'Null'
-where merchantId = 700001300
+--where merchantId = 700001300
 order by transactionNr desc;
 select * from fss_reference;
 select * from fss_transactions
 order by transactionNr;
 select * from fss_smartcard;
 select * from fss_organisation;
-select * from fss_daily_settlement;
+select * from fss_daily_settlement
+order by lodgementref desc;
 
 begin
   execute immediate('truncate table fss_daily_transactions');
@@ -20,9 +21,14 @@ begin
   COMMIT;
   DELETE FROM fss_run_table
   WHERE trunc(runStart, 'DDD') = trunc(SYSDATE, 'DDD');
-  DBMS_JOB.RUN(1505);
+  DBMS_JOB.RUN(1710);
 end;
 /
+
+SELECT merchantId, sum(transactionAmount)
+FROM fss_daily_transactions
+
+DBMS_OUTPUT.ENABLE(200000);
 
 select max(lodgementRef), min(lodgementRef)
 from fss_daily_settlement

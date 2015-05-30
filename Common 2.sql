@@ -22,31 +22,6 @@ AS
     COMMIT; 
   END upd_error_table; 
   
-  PROCEDURE ins_run_table(p_run_start TIMESTAMP, p_outcome VARCHAR2, p_err_message VARCHAR2 := NULL)
-  IS
-  BEGIN
-    INSERT INTO fss_run_table
-      (
-        runId
-        , runStart
-        , runEnd
-        , runOutcome
-        , remarks
-      )
-    VALUES
-      (
-        seq_run_id.nextval
-        , p_run_start
-        , SYSTIMESTAMP
-        , p_outcome
-        , p_err_message
-      );
-  EXCEPTION
-    WHEN OTHERS 
-    THEN
-      common.upd_error_table(SQLERRM, 'ins_run_table');
-  END ins_run_table;
-  
   FUNCTION get_string_parameter(p_kind VARCHAR2, p_code VARCHAR2)
   RETURN VARCHAR2
   IS
